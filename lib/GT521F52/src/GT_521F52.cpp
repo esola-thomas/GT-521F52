@@ -240,13 +240,13 @@ bool Response_Packet::CheckParsing(byte b, byte propervalue, byte alternatevalue
 #pragma region -= Constructor/Destructor =-
 #endif  //__GNUC__
 // Creates a new object to interface with the fingerprint scanner
-GT521F52::GT521F52(HardwareSerial& serial, int baudrate) { _serial = &serial; _serial->begin(baudrate); }
+// GT521F52::GT521F52(UART serial) {}
 
 // destructor
-GT521F52::~GT521F52()
-{
-	_serial->~HardwareSerial();
-}
+// GT521F52::~GT521F52()
+// {
+// 	_serial->~HardwareSerial();
+// }
 #ifndef __GNUC__
 #pragma endregion
 #endif  //__GNUC__
@@ -342,8 +342,8 @@ bool GT521F52::ChangeBaudRate(unsigned long baud)
 		bool retval = rp->ACK;
 		if (retval)
 		{
-			_serial->end();
-			_serial->begin(baud);
+			_serial.end();
+			_serial.begin(baud);
 		}
 		delete rp;
 		delete packetbytes;
@@ -761,7 +761,7 @@ bool GT521F52::CaptureFinger(bool highquality)
 // Sends the command to the software serial channel
 void GT521F52::SendCommand(byte cmd[], int length)
 {
-	_serial->write(cmd, length);
+	_serial.write(cmd, length);
 	if (UseSerialDebug)
 	{
 		Serial.print("FPS - SEND: ");
@@ -776,10 +776,10 @@ Response_Packet* GT521F52::GetResponse()
 	byte firstbyte = 0;
 	bool done = false;
 	// _serial->listen();
-    while (_serial->available() == 0);
+    // while (_serial.available() == 0);
 	while (done == false)
 	{
-		firstbyte = (byte)_serial->read();
+		firstbyte = (byte)_serial.read();
 		if (firstbyte == Response_Packet::COMMAND_START_CODE_1)
 		{
 			done = true;
@@ -789,8 +789,8 @@ Response_Packet* GT521F52::GetResponse()
 	resp[0] = firstbyte;
 	for (int i=1; i < 12; i++)
 	{
-		while (_serial->available() == false) delay(10);
-		resp[i]= (byte) _serial->read();
+		while (_serial.available() == false) delay(10);
+		resp[i]= (byte) _serial.read();
 	}
 	Response_Packet* rp = new Response_Packet(resp, UseSerialDebug);
 	delete resp;

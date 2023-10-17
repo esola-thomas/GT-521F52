@@ -18,7 +18,7 @@
 #define GT521F52_h
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
+#include <Serial.h>
 #ifndef __GNUC__
 #pragma region -= Command_Packet =-
 #endif  //__GNUC__
@@ -180,16 +180,16 @@ class GT521F52
  
  public:
 	// Enables verbose debug output using hardware Serial 
-	bool UseSerialDebug;
+	bool UseSerialDebug = true;
 
 #ifndef __GNUC__
 	#pragma region -= Constructor/Destructor =-
 #endif  //__GNUC__
 	// Creates a new object to interface with the fingerprint scanner
-	GT521F52(HardwareSerial& serialm, int baudrate = 9600);
+	// GT521F52(UART serial);
 	
 	// destructor
-	~GT521F52();
+	//~GT521F52();
 #ifndef __GNUC__
 	#pragma endregion
 #endif  //__GNUC__
@@ -377,11 +377,13 @@ class GT521F52
 	// may revisit this if I find a need for it
 	//Data_Packet GetNextDataPacket();
 
+#define _serial _UART1_
+
 private:
 	 void SendCommand(byte cmd[], int length);
 	 Response_Packet* GetResponse();
 	 uint8_t pin_RX,pin_TX;
-	 HardwareSerial* _serial;
+	 //UART _serial = Serial1;
 };
 
 
