@@ -173,7 +173,7 @@ class Response_Packet
 
 
 /*
-	Object for controlling the 511C3 Finger Print Scanner (FPS)
+	Object for controlling the GT-521F52 Finger Print Scanner (FPS)
 */
 class GT521F52
 {
@@ -186,7 +186,7 @@ class GT521F52
 	#pragma region -= Constructor/Destructor =-
 #endif  //__GNUC__
 	// Creates a new object to interface with the fingerprint scanner
-	GT521F52(HardwareSerial& serial);
+	GT521F52(HardwareSerial& serialm, int baudrate = 9600);
 	
 	// destructor
 	~GT521F52();

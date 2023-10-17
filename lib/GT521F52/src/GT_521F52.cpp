@@ -5,7 +5,7 @@
 	The ID parameters where also modified from 200 to 3000 to follow the GT-521F52 standards
 	 
 	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	
+
 	Extracted from:
 	GT521F52.h v1.0 - Library for controlling the GT-511C3 Finger Print Scanner (FPS)
 	Created by Josh Hawley, July 23rd 2013
@@ -240,7 +240,7 @@ bool Response_Packet::CheckParsing(byte b, byte propervalue, byte alternatevalue
 #pragma region -= Constructor/Destructor =-
 #endif  //__GNUC__
 // Creates a new object to interface with the fingerprint scanner
-GT521F52::GT521F52(HardwareSerial& serial) { _serial = &serial; }
+GT521F52::GT521F52(HardwareSerial& serial, int baudrate) { _serial = &serial; _serial->begin(baudrate); }
 
 // destructor
 GT521F52::~GT521F52()
