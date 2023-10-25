@@ -1,6 +1,12 @@
 #include <ArduinoBLE.h>
 #include <FPS_GT511C3.h>
 
+/*
+  Green LED connection established
+  Blue LED waiting for BLE connection
+  RED LED setup in progress
+*/ 
+
 // Defines to easily controll BLE commands
 #define OPEN_CMD 1
 #define CLOSE_CMD 2
@@ -33,10 +39,11 @@
 #define IDENTIFY_1_N_OFFSET 784
 
 
-BLEService customService("19B10000-E8F2-537E-4F6C-D104768A1214"); // Define a custom service UUID
-BLEIntCharacteristic write_command_characteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLEWrite); // Define a custom characteristic UUID with read and notify permissions
+BLEService ble_service("19B10000-E8F2-537E-4F6C-D104768A1214"); // Define a custom service UUID
+BLEIntCharacteristic write_command_characteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLEWrite);
 BLEStringCharacteristic str_resp_notification_characteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BLENotify, 20);
-BLEIntCharacteristic read_command_characteristic("19B10003-E8F2-537E-4F6C-D104768A1214", BLERead); // Define a custom characteristic UUID with read and notify permissions
+BLEIntCharacteristic read_command_characteristic("19B10003-E8F2-537E-4F6C-D104768A1214", BLERead);
+BLEIntCharacteristic write_user_id_characteristic("19B10004-E8F2-537E-4F6C-D104768A1214", BLEWrite);
 
 int sensorValue = 0;
 FPS_GT511C3 fps;
@@ -46,6 +53,14 @@ FPS_GT511C3 fps;
   fps.init();
   // This is set in fps construct:
   // Serial1.begin(9600);
+
+  // Enable the LEDs
+  pinMode(LEDG, OUTPUT);
+  pinMode(LEDR, OUTPUT);
+  pinMode(LEDB, OUTPUT);
+  digitalWrite(LEDG, HIGH);
+  digitalWrite(LEDR, LOW);
+  digitalWrite(LEDB, HIGH);
   
   // Initialize BLE
   if (!BLE.begin()) {
@@ -54,27 +69,45 @@ FPS_GT511C3 fps;
   }
 
   BLE.setLocalName("GT_Controller");
-  BLE.setAdvertisedService(customService);
+  BLE.setAdvertisedService(ble_service);
 
   // Adding characteristics
-  customService.addCharacteristic(write_command_characteristic);
-  customService.addCharacteristic(str_resp_notification_characteristic);
+  ble_service.addCharacteristic(write_command_characteristic);
+  ble_service.addCharacteristic(str_resp_notification_characteristic);
+  ble_service.addCharacteristic(read_command_characteristic);
+  ble_service.addCharacteristic(write_user_id_characteristic);
 
-  BLE.addService(customService);
+  BLE.addService(ble_service);
 
   write_command_characteristic.setValue(0x00);
   str_resp_notification_characteristic.setValue("Hello World");
+  read_command_characteristic.setValue(0x00);
+  write_user_id_characteristic.setValue(0x00);
   
   BLE.advertise();
   
   Serial.println("Bluetooth device active, waiting for connections..."); 
 }
 
+int id;
 int return_value;
+bool bool_return;
+
+// Portenta H7 inverts the HIGH and LOW due to poull up. This function inverts the logic
+void set_led(unsigned led, PinStatus status);
+
 void loop() {
+  set_led(LEDG, LOW);
+  set_led(LEDB, HIGH);
+  set_led(LEDR, LOW);
+
   BLEDevice central = BLE.central();
 
   if (central) {
+    set_led(LEDG, HIGH);
+    set_led(LEDB, LOW);
+    set_led(LEDR, LOW);
+
     Serial.print("Connected to central: ");
     Serial.println(central.address());
     
@@ -83,6 +116,10 @@ void loop() {
         int command = write_command_characteristic.value();
         Serial.print("BLE Command Recived: 0x");
         Serial.println(command);
+
+        // Read BLE characteristic for id number
+        id = write_user_id_characteristic.value();
+
        switch (command){
           case OPEN_CMD:
           case  OPEN_CMD_OFFSET:
@@ -112,77 +149,74 @@ void loop() {
           case GET_ENROLL_COUNT_CMD:
           case GET_ENROLL_COUNT_OFFSET:
             return_value = fps.GetEnrollCount();
+            Serial.print("Enroll Count: ");
+            Serial.println(return_value);
             read_command_characteristic.writeValue(return_value);
             break;
 
           case CHECK_ENROLLED_CMD:
           case CHECK_ENROLLMENT_OFFSET:
-            bool enrolled = fps.CheckEnrolled(command);
-            return_value = enrolled ? 1 : 0;
+            bool_return = fps.CheckEnrolled(id);
+            return_value = bool_return ? 1 : 0;
+            Serial.print("Check enrrolment for id ");
+            Serial.print(id);
+            Serial.print(" returned ");
+            Serial.println(return_value);
             read_command_characteristic.writeValue(return_value);
             break;
           
-          // Return:
-          //	0 - ACK
-          //	1 - Database is full
-          //	2 - Invalid Position
-          //	3 - Position(ID) is already used
           case ENROLL_START_CMD:
           case ENROLL_START_OFFSET:
-            return_value = fps.EnrollStart(command);
+            return_value = fps.EnrollStart(id);
             read_command_characteristic.writeValue(return_value);
+            Serial.print("Enroll Start for id ");
+            Serial.print(id);
+            Serial.print(" returned ");
+            Serial.println(return_value);
             break;
 
-          // case ENROLL_1_CMD:
-          //   fps.Enroll1(command);
-          //   break;
-          // case ENROLL_2_CMD:
-          //   fps.Enroll2(command);
-          //   break;
-          // case ENROLL_3_CMD:
-          //   fps.Enroll3(command);
-          //   break;
           case IS_PRESS_FINGER_CMD:
           case IS_PRESS_FINGER_OFFSET:
-            bool isPressed = fps.IsPressFinger();
-            return_value = isPressed ? 1 : 0;
+            bool_return = fps.IsPressFinger();
+            return_value = bool_return ? 1 : 0;
             read_command_characteristic.writeValue(return_value);
+            Serial.print("Is Press Finger returned ");
+            Serial.println(return_value);
             break;
 
           case DELETE_ID_CMD:
           case DELETE_ID_OFFSET:
-            bool delete_success = fps.DeleteID(command);
-            return_value = delete_success ? 1 : 0;
+            bool_return = fps.DeleteID(id);
+            return_value = bool_return ? 1 : 0;
             read_command_characteristic.writeValue(return_value);
+            Serial.print("Delete ID for id ");
+            Serial.print(id);
+            Serial.print(" returned ");
+            Serial.println(return_value);
             break;
 
           case DELETE_ALL_CMD:
             fps.DeleteAll();
             break;
 
-          //	0 - Verified OK (the correct finger)
-          //	1 - Invalid Position
-          //	2 - ID is not in use
-          //	3 - Verified FALSE (not the correct finger)
           case VERIFY_1_1_CMD:
           case VERIFY_1_1_OFFSET:
-            return_value = fps.Verify1_1(command);
+            return_value = fps.Verify1_1(id);
             read_command_characteristic.writeValue(return_value);
+            Serial.print("Verify 1_1 for id ");
+            Serial.print(id);
+            Serial.print(" returned ");
+            Serial.println(return_value);
             break;
 
-          //	Verified against the specified ID (found, and here is the ID number)
-          //    0-2999, if using GT-521F52
-          //  Failed to find the fingerprint in the database
-          // 	  3000, if using GT-521F52
           case IDENTIFY_1_N_CMD:
           case IDENTIFY_1_N_OFFSET:
             return_value = fps.Identify1_N();
             read_command_characteristic.writeValue(return_value);
+            Serial.print("Identify 1_N returned ");
+            Serial.println(return_value);
             break;
 
-          // case CAPTURE_FINGER_CMD:
-          //   fps.CaptureFinger();
-          //   break;
           default:
             Serial.print("Invalid Command 0x");
             Serial.println(command);
@@ -197,5 +231,13 @@ void loop() {
     fps.SetLED(false);
     fps.Close();
     Serial.println(central.address());
+  }
+}
+
+void set_led(unsigned led, PinStatus status){
+  if (status == HIGH){
+    digitalWrite(led, LOW);
+  } else {
+    digitalWrite(led, HIGH);
   }
 }
